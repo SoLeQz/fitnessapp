@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/*
+ * Thème sombre unique. L'application est pensée pour être consultée dans une
+ * salle de sport, souvent en éclairage artificiel : le contraste est calibré
+ * pour rester lisible d'un coup d'œil, à bout de bras, entre deux séries.
+ *
+ * L'orange est réservé à la marque et aux actions principales ; le vert,
+ * l'ambre et le rouge portent uniquement le sens « progression / stable /
+ * régression », pour qu'une couleur ne signifie jamais deux choses.
+ */
+@theme {
+  --color-bg: #0a0b0e;
+  --color-bg-elevated: #101216;
+  --color-surface: #15181e;
+  --color-surface-hover: #1c2029;
+  --color-border: #262b34;
+  --color-border-strong: #363c48;
+
+  --color-fg: #eceef2;
+  --color-fg-muted: #9aa1ae;
+  --color-fg-subtle: #6b7280;
+
+  --color-accent: #ff6b2c;
+  --color-accent-hover: #ff8047;
+  --color-accent-fg: #140803;
+  --color-accent-soft: #ff6b2c1a;
+
+  --color-success: #34d399;
+  --color-success-soft: #34d3991a;
+  --color-warning: #fbbf24;
+  --color-warning-soft: #fbbf241a;
+  --color-danger: #f87171;
+  --color-danger-soft: #f871711a;
+
+  --radius-card: 1rem;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --animate-rise: rise 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-fade: fade 0.25s ease-out;
+  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    /* La barre de navigation basse est fixe : on réserve sa hauteur et
+       l'encoche du téléphone. */
+    padding-bottom: env(safe-area-inset-bottom);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Les chiffres d'une série ne doivent pas « sauter » quand ils changent. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Retire les flèches des champs numériques : la saisie se fait au pavé
+     numérique ou avec les boutons +/- dédiés. */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

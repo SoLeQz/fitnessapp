@@ -1,0 +1,441 @@
+// ForgeFit — schéma relationnel
+//
+// Conventions
+// -----------
+// * Les tables sont nommées en snake_case (@@map) et au pluriel.
+// * Toutes les données d'entraînement sont rattachées à un `User` : l'isolation
+//   entre utilisateurs est garantie par une clé étrangère remontant à `users`,
+//   directement ou via `workouts`.
+// * Les poids sont stockés en `Decimal` (jamais en flottant) pour que les
+//   incréments de 2.5 kg / 1.25 kg restent exacts.
+// * `WorkoutSet.weightKg` est une valeur canonique dérivée (voir load-unit.ts) :
+//   elle permet d'agréger un volume en kg sans reconvertir à la lecture, et vaut
+//   NULL quand l'unité n'est pas convertible (niveau de machine, poids du corps).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Énumérations
+// ---------------------------------------------------------------------------
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  SHOULDERS
+  BICEPS
+  TRICEPS
+  FOREARMS
+  QUADS
+  HAMSTRINGS
+  GLUTES
+  CALVES
+  CORE
+  CARDIO
+  FULL_BODY
+}
+
+enum ExerciseCategory {
+  MACHINE
+  DUMBBELL
+  BARBELL
+  BODYWEIGHT
+  CABLE
+  CARDIO
+  OTHER
+}
+
+/// Unité de charge. KG/LBS sont convertibles entre elles ; LEVEL (niveau de
+/// machine) et BODYWEIGHT ne le sont pas et ne sont jamais agrégés en kilos.
+enum LoadUnit {
+  KG
+  LBS
+  LEVEL
+  BODYWEIGHT
+  NONE
+}
+
+/// Détermine les champs qu'une série expose (et donc ceux que l'UI affiche).
+enum TrackingMode {
+  WEIGHT_REPS // développé couché, presse... : charge + répétitions
+  REPS_ONLY // tractions, gainage au nombre : répétitions seules
+  TIME // planche, gainage : durée
+  DISTANCE_TIME // cardio : distance + durée
+}
+
+enum WorkoutStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum PersonalRecordType {
+  MAX_WEIGHT // charge la plus lourde soulevée
+  MAX_REPS // plus grand nombre de répétitions sur une série
+  BEST_SET_VOLUME // meilleur volume sur une série (charge x reps)
+  BEST_EST_1RM // meilleure estimation de 1RM
+  BEST_SESSION_VOLUME // meilleur volume sur une séance, pour cet exercice
+}
+
+// ---------------------------------------------------------------------------
+// Utilisateurs & authentification
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique // toujours stocké en minuscules
+  passwordHash  String
+  displayName   String
+  /// Unité d'affichage préférée : contrainte à KG ou LBS côté validation.
+  preferredUnit LoadUnit @default(KG)
+  /// Durée de repos proposée par défaut par le timer, en secondes.
+  defaultRestSeconds Int  @default(90)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions          Session[]
+  passwordResets    PasswordResetToken[]
+  exercises         Exercise[]
+  exerciseVariants  ExerciseVariant[]
+  favorites         ExerciseFavorite[]
+  programs          WorkoutProgram[]
+  workouts          Workout[]
+  bodyWeightEntries BodyWeightEntry[]
+  personalRecords   PersonalRecord[]
+
+  @@map("users")
+}
+
+/// Session opaque : le cookie contient le jeton en clair, la base n'en garde
+/// que le SHA-256. Une fuite de la table ne permet donc pas de rejouer une session.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Bibliothèque d'exercices
+// ---------------------------------------------------------------------------
+
+/// `ownerId = NULL` désigne un exercice du catalogue commun (seed).
+/// `ownerId != NULL` désigne un exercice créé par l'utilisateur.
+/// L'unicité du nom par propriétaire est assurée par un index partiel créé
+/// dans la migration (NULLS NOT DISTINCT), Prisma ne sachant pas l'exprimer.
+model Exercise {
+  id               String           @id @default(cuid())
+  ownerId          String?
+  name             String
+  /// Nom normalisé (minuscules, sans accents) : unicité + recherche.
+  normalizedName   String
+  muscleGroup      MuscleGroup
+  secondaryMuscles MuscleGroup[]
+  category         ExerciseCategory
+  trackingMode     TrackingMode     @default(WEIGHT_REPS)
+  defaultUnit      LoadUnit         @default(KG)
+  description      String?
+  imageUrl         String?
+  isArchived       Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  owner             User?              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  variants          ExerciseVariant[]
+  favorites         ExerciseFavorite[]
+  programExercises  ProgramExercise[]
+  workoutExercises  WorkoutExercise[]
+  personalRecords   PersonalRecord[]
+
+  @@index([ownerId])
+  @@index([muscleGroup])
+  @@index([normalizedName])
+  @@map("exercises")
+}
+
+/// Déclinaison d'un exercice sur une machine précise (exigence « Chest Press —
+/// Matrix » en kg vs « Chest Press — Technogym » en niveaux). L'unité et le pas
+/// de progression sont portés ici : deux salles ne se comparent pas entre elles.
+model ExerciseVariant {
+  id              String   @id @default(cuid())
+  userId          String
+  exerciseId      String
+  label           String // « Matrix », « Technogym », « Salle du bureau »...
+  unit            LoadUnit @default(KG)
+  /// Pas d'incrément proposé par l'UI (2.5 kg, 5 lbs, 1 niveau...).
+  weightIncrement Decimal  @default(2.5) @db.Decimal(6, 3)
+  notes           String?
+  isDefault       Boolean  @default(false)
+  isArchived      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise         Exercise          @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  programExercises ProgramExercise[]
+  workoutExercises WorkoutExercise[]
+  personalRecords  PersonalRecord[]
+
+  @@unique([userId, exerciseId, label])
+  @@index([userId, exerciseId])
+  @@map("exercise_variants")
+}
+
+model ExerciseFavorite {
+  userId     String
+  exerciseId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@id([userId, exerciseId])
+  @@map("exercise_favorites")
+}
+
+// ---------------------------------------------------------------------------
+// Programmes / routines
+// ---------------------------------------------------------------------------
+
+model WorkoutProgram {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String // « Push Pull Legs »
+  description String?
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days ProgramDay[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("workout_programs")
+}
+
+/// Une journée type du programme : « Push », « Pull », « Legs ».
+model ProgramDay {
+  id        String   @id @default(cuid())
+  programId String
+  name      String
+  /// Rang d'affichage. Volontairement non unique : réordonner une liste avec
+  /// une contrainte d'unicité immédiate obligerait à des positions temporaires.
+  position  Int      @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  program   WorkoutProgram    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  exercises ProgramExercise[]
+  workouts  Workout[]
+
+  @@index([programId, position])
+  @@map("program_days")
+}
+
+model ProgramExercise {
+  id               String   @id @default(cuid())
+  programDayId     String
+  exerciseId       String
+  variantId        String?
+  position         Int      @default(0)
+  targetSets       Int      @default(3)
+  targetRepsMin    Int?
+  targetRepsMax    Int?
+  targetRestSeconds Int?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  programDay ProgramDay       @relation(fields: [programDayId], references: [id], onDelete: Cascade)
+  exercise   Exercise         @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  variant    ExerciseVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([programDayId, position])
+  @@index([exerciseId])
+  @@map("workout_program_exercises")
+}
+
+// ---------------------------------------------------------------------------
+// Séances
+// ---------------------------------------------------------------------------
+
+model Workout {
+  id           String        @id @default(cuid())
+  userId       String
+  /// Jour de programme d'origine, conservé à titre indicatif. Mis à NULL si le
+  /// programme est supprimé : l'historique de la séance ne doit jamais disparaître.
+  programDayId String?
+  name         String
+  status       WorkoutStatus @default(IN_PROGRESS)
+  startedAt    DateTime      @default(now())
+  finishedAt   DateTime?
+  notes        String?
+
+  /// Agrégats matérialisés, recalculés par workout-stats.service à chaque
+  /// modification de série. Ils évitent de rejouer une somme sur toutes les
+  /// séries pour afficher le tableau de bord et le calendrier.
+  totalVolumeKg   Decimal @default(0) @db.Decimal(12, 3)
+  totalSets       Int     @default(0)
+  durationSeconds Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programDay      ProgramDay?       @relation(fields: [programDayId], references: [id], onDelete: SetNull)
+  exercises       WorkoutExercise[]
+  personalRecords PersonalRecord[]
+
+  @@index([userId, startedAt(sort: Desc)])
+  @@index([userId, status])
+  @@map("workouts")
+}
+
+model WorkoutExercise {
+  id         String   @id @default(cuid())
+  workoutId  String
+  exerciseId String
+  variantId  String?
+  position   Int      @default(0)
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  workout  Workout          @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise Exercise         @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  variant  ExerciseVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  sets     WorkoutSet[]
+
+  @@index([workoutId, position])
+  @@index([exerciseId])
+  @@map("workout_exercises")
+}
+
+/// Une série. Les champs de mesure sont tous optionnels : c'est le
+/// `TrackingMode` de l'exercice qui détermine ceux qui sont pertinents.
+model WorkoutSet {
+  id                String @id @default(cuid())
+  workoutExerciseId String
+  setNumber         Int
+
+  isWarmup    Boolean @default(false)
+  isCompleted Boolean @default(true)
+
+  /// Valeur saisie, exprimée dans `weightUnit`.
+  weight     Decimal? @db.Decimal(8, 3)
+  /// Unité figée au moment de la saisie : changer l'unité d'un exercice plus
+  /// tard ne doit pas réécrire le passé.
+  weightUnit LoadUnit @default(KG)
+  /// Équivalent canonique en kilogrammes, NULL si non convertible.
+  weightKg   Decimal? @db.Decimal(8, 3)
+
+  reps            Int?
+  durationSeconds Int?
+  distanceMeters  Decimal? @db.Decimal(10, 2)
+  restSeconds     Int?
+  rpe             Decimal? @db.Decimal(3, 1)
+  notes           String?
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutExerciseId, setNumber])
+  @@index([workoutExerciseId])
+  @@map("sets")
+}
+
+// ---------------------------------------------------------------------------
+// Suivi du poids corporel
+// ---------------------------------------------------------------------------
+
+model BodyWeightEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  /// Toujours stocké en kilogrammes ; `unit` ne sert qu'au réaffichage.
+  weightKg   Decimal  @db.Decimal(6, 3)
+  unit       LoadUnit @default(KG)
+  measuredOn DateTime @db.Date
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, measuredOn])
+  @@index([userId, measuredOn(sort: Desc)])
+  @@map("body_weight_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Records personnels
+// ---------------------------------------------------------------------------
+
+/// Un enregistrement par (utilisateur, exercice, variante, type) : la ligne
+/// contient le record *courant*. Recalculée par personal-record.service à la
+/// clôture d'une séance ou après édition de séries.
+/// L'unicité (avec variantId NULL) est posée dans la migration via
+/// `NULLS NOT DISTINCT`.
+model PersonalRecord {
+  id         String             @id @default(cuid())
+  userId     String
+  exerciseId String
+  variantId  String?
+  type       PersonalRecordType
+
+  /// Valeur comparable du record, dans l'unité naturelle du type
+  /// (kg pour MAX_WEIGHT/1RM, répétitions pour MAX_REPS, kg pour les volumes).
+  value Decimal @db.Decimal(12, 3)
+
+  /// Contexte lisible du record : « 80 kg x 6 ».
+  weight     Decimal?  @db.Decimal(8, 3)
+  weightUnit LoadUnit?
+  reps       Int?
+
+  workoutId  String?
+  achievedAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise         @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  variant  ExerciseVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  workout  Workout?         @relation(fields: [workoutId], references: [id], onDelete: SetNull)
+
+  @@index([userId, achievedAt(sort: Desc)])
+  @@index([userId, exerciseId])
+  @@map("personal_records")
+}

@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: forgefit-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: forgefit
+      POSTGRES_PASSWORD: forgefit
+      POSTGRES_DB: forgefit
+    ports:
+      - "5433:5432"
+    volumes:
+      - forgefit-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forgefit -d forgefit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  forgefit-pgdata:
