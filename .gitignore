@@ -1,1 +1,97 @@
-node_modules
+# ---------------------------------------------------------------------------
+# Dépendances
+# ---------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# ---------------------------------------------------------------------------
+# Build Next.js
+# ---------------------------------------------------------------------------
+.next/
+out/
+build/
+dist/
+.vercel
+.netlify
+
+# ---------------------------------------------------------------------------
+# TypeScript
+# ---------------------------------------------------------------------------
+# `next-env.d.ts` est régénéré par next dev / next build / next typegen et son
+# contenu est un détail d'implémentation de Next : la doc demande explicitement
+# de ne pas le versionner.
+next-env.d.ts
+*.tsbuildinfo
+
+# ---------------------------------------------------------------------------
+# Prisma
+# ---------------------------------------------------------------------------
+# Le client est régénéré à chaque installation par le script `postinstall`.
+# Les migrations, elles, restent versionnées (prisma/migrations).
+/src/generated/
+
+# ---------------------------------------------------------------------------
+# Variables d'environnement
+# ---------------------------------------------------------------------------
+# AUTH_SECRET et DATABASE_URL ne doivent jamais atteindre le dépôt.
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Tests et couverture
+# ---------------------------------------------------------------------------
+coverage/
+*.lcov
+.nyc_output/
+
+# ---------------------------------------------------------------------------
+# Logs et rapports de crash
+# ---------------------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Certificats locaux (HTTPS en développement)
+# ---------------------------------------------------------------------------
+*.pem
+*.key
+*.crt
+
+# ---------------------------------------------------------------------------
+# Système d'exploitation
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Éditeurs
+# ---------------------------------------------------------------------------
+.idea/
+*.swp
+*.swo
+*~
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# ---------------------------------------------------------------------------
+# Outillage local
+# ---------------------------------------------------------------------------
+.claude/settings.local.json
