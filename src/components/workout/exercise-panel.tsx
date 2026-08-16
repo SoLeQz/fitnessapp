@@ -123,7 +123,15 @@ export function ExercisePanel({
   };
 
   return (
-    <section className="overflow-hidden rounded-card border border-border bg-surface">
+    <section
+      className={cn(
+        "overflow-hidden rounded-card border bg-surface shadow-card transition-colors",
+        // Un exercice entamé se distingue à la bordure. Sur une séance de six
+        // mouvements, cela évite de relire chaque titre pour retrouver où l'on
+        // en est en revenant du vestiaire.
+        completedSets > 0 ? "border-success/35" : "border-border",
+      )}
+    >
       <header className="flex items-start gap-2 px-4 pt-3.5">
         <button
           type="button"

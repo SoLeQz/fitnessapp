@@ -5,35 +5,49 @@
  * salle de sport, souvent en éclairage artificiel : le contraste est calibré
  * pour rester lisible d'un coup d'œil, à bout de bras, entre deux séries.
  *
- * L'orange est réservé à la marque et aux actions principales ; le vert,
+ * Le cyan est réservé à la marque et aux actions principales ; le vert,
  * l'ambre et le rouge portent uniquement le sens « progression / stable /
  * régression », pour qu'une couleur ne signifie jamais deux choses.
+ *
+ * Le vert est volontairement franc (#4ade80) et non émeraude : une émeraude
+ * tire vers le bleu-vert et deviendrait difficile à distinguer du cyan de
+ * marque, précisément là où la distinction compte — un badge « progression »
+ * posé à côté d'un bouton principal.
  */
 @theme {
   --color-bg: #0a0b0e;
-  --color-bg-elevated: #101216;
-  --color-surface: #15181e;
-  --color-surface-hover: #1c2029;
-  --color-border: #262b34;
-  --color-border-strong: #363c48;
+  --color-bg-elevated: #0f1218;
+  --color-surface: #141821;
+  --color-surface-hover: #1b202b;
+  --color-border: #242b38;
+  --color-border-strong: #35404f;
 
   --color-fg: #eceef2;
-  --color-fg-muted: #9aa1ae;
-  --color-fg-subtle: #6b7280;
+  --color-fg-muted: #99a2b2;
+  --color-fg-subtle: #6b7482;
 
-  --color-accent: #ff6b2c;
-  --color-accent-hover: #ff8047;
-  --color-accent-fg: #140803;
-  --color-accent-soft: #ff6b2c1a;
+  --color-accent: #22d3ee;
+  --color-accent-hover: #67e8f9;
+  --color-accent-fg: #04191f;
+  --color-accent-soft: #22d3ee1f;
 
-  --color-success: #34d399;
-  --color-success-soft: #34d3991a;
+  --color-success: #4ade80;
+  --color-success-soft: #4ade801a;
   --color-warning: #fbbf24;
   --color-warning-soft: #fbbf241a;
   --color-danger: #f87171;
   --color-danger-soft: #f871711a;
 
   --radius-card: 1rem;
+
+  /*
+   * Deux niveaux d'élévation seulement. Sur fond très sombre une ombre portée
+   * ne se voit presque pas : c'est le liseré clair en haut de l'élément qui
+   * crée le relief, comme une arête éclairée par le dessus.
+   */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.03);
+  --shadow-raised:
+    0 12px 32px -16px rgb(0 0 0 / 0.9), inset 0 1px 0 rgb(255 255 255 / 0.06);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
@@ -91,6 +105,18 @@
   /* Les chiffres d'une série ne doivent pas « sauter » quand ils changent. */
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Les titres se coupent au mot le plus équilibré plutôt qu'en laissant un
+     mot orphelin sur la dernière ligne. */
+  h1,
+  h2 {
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-accent) 30%, transparent);
+    color: var(--color-fg);
   }
 
   :focus-visible {

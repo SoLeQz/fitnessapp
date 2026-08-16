@@ -42,7 +42,7 @@ export function RestTimerBar() {
       aria-live="off"
       className={cn(
         "fixed inset-x-0 bottom-20 z-40 mx-auto w-[min(100%-1rem,32rem)] md:bottom-4",
-        "animate-rise overflow-hidden rounded-2xl border bg-bg-elevated/95 shadow-xl backdrop-blur",
+        "animate-rise overflow-hidden rounded-2xl border bg-bg-elevated/95 shadow-raised backdrop-blur",
         status.isFinished ? "border-success/50" : "border-border",
       )}
     >

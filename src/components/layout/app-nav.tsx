@@ -28,12 +28,20 @@ export function SidebarNav({ displayName }: { displayName: string }) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                 active
                   ? "bg-accent-soft font-medium text-accent"
                   : "text-fg-muted hover:bg-surface hover:text-fg",
               )}
             >
+              {/* Rail vertical : la page courante reste identifiable même pour
+                  un œil qui distingue mal le cyan du gris. */}
+              {active ? (
+                <span
+                  className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-accent"
+                  aria-hidden
+                />
+              ) : null}
               <item.icon className="size-4 shrink-0" aria-hidden />
               {item.label}
             </Link>
@@ -70,10 +78,18 @@ export function BottomNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] transition-colors",
-              active ? "text-accent" : "text-fg-subtle",
+              "relative flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] transition-colors",
+              active ? "font-medium text-accent" : "text-fg-subtle",
             )}
           >
+            {/* Barre haute plutôt qu'une simple mise en couleur : l'onglet
+                courant se repère du coin de l'œil, entre deux séries. */}
+            {active ? (
+              <span
+                className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-accent"
+                aria-hidden
+              />
+            ) : null}
             <item.icon className="size-5" aria-hidden />
             {item.label}
           </Link>

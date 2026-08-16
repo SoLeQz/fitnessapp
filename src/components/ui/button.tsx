@@ -5,7 +5,8 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "succ
 export type ButtonSize = "sm" | "md" | "lg" | "xl";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-hover font-semibold",
+  primary:
+    "bg-accent text-accent-fg font-semibold shadow-card hover:bg-accent-hover active:bg-accent-hover",
   secondary:
     "bg-surface text-fg border border-border hover:bg-surface-hover hover:border-border-strong",
   ghost: "text-fg-muted hover:text-fg hover:bg-surface",
@@ -38,7 +39,14 @@ export function buttonClassName({
   className?: string;
 } = {}): string {
   return cn(
-    "inline-flex items-center justify-center whitespace-nowrap transition-colors",
+    "inline-flex items-center justify-center whitespace-nowrap",
+    // La transformation est listée explicitement : un `transition-all` ferait
+    // aussi glisser la largeur du bouton quand son libellé change en cours de
+    // séance (« Valider » → « Mettre à jour »), ce qui saute aux yeux.
+    "transition-[background-color,border-color,color,box-shadow,transform] duration-150",
+    // Retour tactile à l'appui : indispensable sur téléphone, où il n'y a pas
+    // de survol pour confirmer que la cible a bien été touchée.
+    "active:scale-[0.97] disabled:active:scale-100",
     "disabled:cursor-not-allowed disabled:opacity-45",
     "select-none touch-manipulation",
     VARIANT_CLASSES[variant],

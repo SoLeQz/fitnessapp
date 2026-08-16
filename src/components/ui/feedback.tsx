@@ -104,10 +104,30 @@ export function StatTile({
             ? "text-warning"
             : "text-fg";
 
+  /*
+   * Une tuile accentuée porte aussi son fond et sa bordure, pas seulement une
+   * couleur de chiffre. Quatre tuiles strictement identiques obligent à toutes
+   * les lire pour trouver celle qui compte ; ici la principale se repère sans
+   * lecture, à la forme.
+   */
+  const container =
+    tone === "accent"
+      ? "border-accent/35 bg-accent-soft"
+      : "border-border bg-surface";
+
   return (
-    <div className={cn("rounded-card border border-border bg-surface p-3.5", className)}>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-fg-subtle">{label}</p>
-      <p className={cn("tabular mt-1 text-2xl font-semibold leading-none", valueTone)}>{value}</p>
+    <div className={cn("rounded-card border p-3.5 shadow-card", container, className)}>
+      <p
+        className={cn(
+          "text-[11px] font-medium uppercase tracking-wide",
+          tone === "accent" ? "text-accent/80" : "text-fg-subtle",
+        )}
+      >
+        {label}
+      </p>
+      <p className={cn("tabular mt-1.5 text-[1.75rem] font-semibold leading-none", valueTone)}>
+        {value}
+      </p>
       {hint ? <p className="mt-1.5 text-xs text-fg-muted">{hint}</p> : null}
     </div>
   );
