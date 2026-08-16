@@ -6,6 +6,7 @@ import { StartWorkoutButton } from "@/components/workout/start-workout-button";
 import { buttonClassName } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState, StatTile } from "@/components/ui/feedback";
+import { ShootingStars } from "@/components/ui/shooting-stars";
 import { formatRelativeDays, formatSessionDate } from "@/lib/date";
 import { formatDuration, formatVolume } from "@/lib/format";
 import { formatWeight } from "@/lib/load-unit";
@@ -24,6 +25,8 @@ export default async function DashboardPage() {
 
   return (
     <>
+      <ShootingStars />
+
       <PageHeader
         title={`Bonjour ${user.displayName}`}
         subtitle={

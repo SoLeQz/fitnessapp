@@ -120,3 +120,108 @@
     }
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Ciel étoilé décoratif (voir components/ui/shooting-stars.tsx)
+ *
+ * Le calque est en `fixed` derrière le contenu : le fond ne défile pas avec la
+ * page, et les étoiles filantes traversent tout l'écran plutôt que la seule
+ * zone visible. Le `z-index` négatif fonctionne parce que le fond du `body` est
+ * propagé au canvas du navigateur — le calque passe donc au-dessus de cette
+ * couleur, mais sous tout le reste.
+ * ------------------------------------------------------------------------- */
+
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sky-star {
+  position: absolute;
+  border-radius: 9999px;
+  background-color: #fff;
+  opacity: var(--star-opacity-min);
+  animation: twinkle var(--star-duration) ease-in-out var(--star-delay) infinite;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: var(--star-opacity-min);
+  }
+  50% {
+    opacity: var(--star-opacity-max);
+  }
+}
+
+.sky-shooting-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 9999px;
+  background-color: #fff;
+  box-shadow: 0 0 6px 1px rgb(255 255 255 / 0.45);
+  opacity: 0;
+  /*
+   * La rotation et la translation sont dans un même `transform` — et dans cet
+   * ordre. Les fonctions s'appliquent de gauche à droite : l'étoile se déplace
+   * donc le long de son axe incliné, et non horizontalement. Les propriétés
+   * indépendantes `rotate` / `translate` donneraient l'inverse (la translation
+   * est appliquée avant la rotation), et la traînée pointerait à côté du
+   * trajet.
+   */
+  transform: rotate(var(--star-angle)) translateX(0);
+  animation: shoot var(--star-duration) linear var(--star-delay) infinite;
+}
+
+/* La traînée part vers l'arrière du trajet et s'estompe. */
+.sky-shooting-star::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 1px;
+  width: var(--star-tail);
+  height: 1px;
+  transform: translateY(-50%);
+  background: linear-gradient(to left, rgb(255 255 255 / 0.5), transparent);
+}
+
+/*
+ * Le passage n'occupe que 14% du cycle : le reste du temps l'étoile attend,
+ * invisible, hors écran. C'est ce qui rend l'effet occasionnel plutôt que
+ * continu.
+ */
+@keyframes shoot {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--star-angle)) translateX(0);
+  }
+  2% {
+    opacity: 1;
+  }
+  11% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0;
+    transform: rotate(var(--star-angle)) translateX(var(--star-distance));
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--star-angle)) translateX(var(--star-distance));
+  }
+}
+
+/*
+ * La règle globale plus haut se contente de réduire les durées, ce qui ferait
+ * clignoter les étoiles une fois avant de les figer. Un fond décoratif n'a
+ * aucune raison de survivre à ce réglage : on le retire complètement.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .sky {
+    display: none;
+  }
+}
